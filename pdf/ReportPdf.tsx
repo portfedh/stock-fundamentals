@@ -1,10 +1,8 @@
 /* eslint-disable jsx-a11y/alt-text */
-// 11-page PDF mirroring pdf_report.py: header (logo + date + company), footer
+// 11-page PDF mirroring pdf_report.py: header (date + company), footer
 // (data source + page number), and the same 11 sections. Charts are pre-rendered
 // to PNG (ECharts SSR -> sharp); tables are drawn with react-pdf primitives.
 import React from "react";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import {
   Document,
   Image,
@@ -108,7 +106,7 @@ function Chart({ pngs, name, title }: { pngs: Pngs; name: string; title: string 
   );
 }
 
-function buildDocument(report: Report, pngs: Pngs, logo: string) {
+function buildDocument(report: Report, pngs: Pngs) {
   const { tables: t, profile, meta } = report;
   const company = meta.companySymbol;
   const date = meta.generatedAt;
@@ -136,10 +134,7 @@ function buildDocument(report: Report, pngs: Pngs, logo: string) {
       keywords={`fundamental, analysis, ${company}`}
     >
       <Frame company={company} date={date}>
-        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-          {logo ? <Image src={logo} style={{ width: 60, marginRight: 12 }} /> : null}
-          <Text style={s.h2}>Company Summary</Text>
-        </View>
+        <Text style={s.h2}>Company Summary</Text>
         {profileRows.map(([k, v]) => (
           <View key={k} style={s.profileRow}>
             <Text style={s.profileKey}>{k}</Text>
@@ -260,13 +255,5 @@ export async function renderReportPdf(report: Report): Promise<Buffer> {
     }),
   );
 
-  let logo = "";
-  try {
-    const buf = await readFile(path.join(process.cwd(), "public", "BS-Logo.png"));
-    logo = `data:image/png;base64,${buf.toString("base64")}`;
-  } catch {
-    /* logo optional */
-  }
-
-  return renderToBuffer(buildDocument(report, pngs, logo));
+  return renderToBuffer(buildDocument(report, pngs));
 }

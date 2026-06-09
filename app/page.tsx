@@ -41,8 +41,6 @@ export default function Home() {
     <main className="page">
       <header className="topbar">
         <div className="brand">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/BS-Logo.png" alt="Logo" height={36} />
           <h1>Fundamental Analysis</h1>
         </div>
         <form className="controls" onSubmit={run}>
