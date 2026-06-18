@@ -19,6 +19,9 @@ const num = (v: Num): number | null => (v == null || !isFinite(v) ? null : v);
 
 function base(title: string, xName: string, yName: string, categories: string[]): ChartOption {
   return {
+    // Global font family inherited by every text component (title, legend, axes).
+    // Must match the bundled font resvg-js loads in pdf/chartToPng.ts.
+    textStyle: { fontFamily: "Noto Sans" },
     title: { text: title, left: "center", top: 4, textStyle: { fontSize: 14 } },
     tooltip: { trigger: "axis" },
     legend: { top: 30, type: "scroll" },

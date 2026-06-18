@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/alt-text */
 // 11-page PDF mirroring pdf_report.py: header (date + company), footer
 // (data source + page number), and the same 11 sections. Charts are pre-rendered
-// to PNG (ECharts SSR -> sharp); tables are drawn with react-pdf primitives.
+// to PNG (ECharts SSR -> resvg-js); tables are drawn with react-pdf primitives.
 import React from "react";
 import {
   Document,
