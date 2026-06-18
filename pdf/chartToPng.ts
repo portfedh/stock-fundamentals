@@ -10,10 +10,12 @@ import path from "path";
 import { ChartOption } from "@/lib/charts";
 
 const FONT_DIR = path.join(process.cwd(), "pdf/fonts");
-const FONT_FILES = ["NotoSans-Regular.ttf", "NotoSans-Bold.ttf"].map((f) =>
+// Arimo is metric-compatible with Arial/Helvetica, so chart text matches the
+// PDF body (which uses react-pdf's built-in Helvetica).
+const FONT_FILES = ["Arimo-Regular.ttf", "Arimo-Bold.ttf"].map((f) =>
   path.join(FONT_DIR, f),
 );
-const FONT_FAMILY = "Noto Sans";
+const FONT_FAMILY = "Arimo";
 
 export async function chartToPng(
   option: ChartOption,

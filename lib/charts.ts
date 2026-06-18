@@ -16,18 +16,42 @@ import { safeDiv } from "./math";
 export type ChartOption = Record<string, unknown>;
 
 const num = (v: Num): number | null => (v == null || !isFinite(v) ? null : v);
+// Currency charts are labelled "Amount $mm" (millions), matching the tables in
+// lib/tables.ts; scale raw dollar values to millions so the labels stay legible.
+const mm = (v: Num): number | null => (v == null || !isFinite(v) ? null : v / 1e6);
 
 function base(title: string, xName: string, yName: string, categories: string[]): ChartOption {
   return {
-    // Global font family inherited by every text component (title, legend, axes).
-    // Must match the bundled font resvg-js loads in pdf/chartToPng.ts.
-    textStyle: { fontFamily: "Noto Sans" },
-    title: { text: title, left: "center", top: 4, textStyle: { fontSize: 14 } },
+    // Global font for every text component. "Arimo" must match the font resvg-js
+    // loads in pdf/chartToPng.ts; it is metric-compatible with the PDF body's
+    // Helvetica. Sizes are bumped so labels stay legible after the chart PNG is
+    // scaled down to fit the PDF page.
+    // resvg-js (PDF) renders with the bundled "Arimo"; browsers fall back to
+    // Arial/Helvetica/sans-serif on the interactive page.
+    textStyle: { fontFamily: "Arimo, Arial, Helvetica, sans-serif", fontSize: 15 },
+    title: { text: title, left: "center", top: 4, textStyle: { fontSize: 18, fontWeight: "bold" } },
     tooltip: { trigger: "axis" },
-    legend: { top: 30, type: "scroll" },
-    grid: { left: 70, right: 30, top: 64, bottom: 50, containLabel: true },
-    xAxis: { type: "category", name: xName, nameLocation: "middle", nameGap: 30, data: categories },
-    yAxis: { type: "value", name: yName },
+    legend: { top: 32, type: "scroll", textStyle: { fontSize: 14 } },
+    // top is generous so the y-axis unit (drawn just above the plot) sits below
+    // the legend row even when a chart has 5 series.
+    grid: { left: 12, right: 30, top: 96, bottom: 56, containLabel: true },
+    xAxis: {
+      type: "category",
+      name: xName,
+      nameLocation: "middle",
+      nameGap: 34,
+      data: categories,
+      nameTextStyle: { fontSize: 16 },
+      axisLabel: { fontSize: 15 },
+    },
+    yAxis: {
+      type: "value",
+      name: yName,
+      // Unit sits at the top-left, left-aligned. Values are scaled to millions
+      // (see mm()) so the tick labels stay narrow and never crowd the legend.
+      nameTextStyle: { fontSize: 15, align: "left" },
+      axisLabel: { fontSize: 15 },
+    },
     animation: false,
   };
 }
@@ -43,10 +67,10 @@ export function balanceSheetChart(bs: BalanceRow[], company: string, currency: s
   return {
     ...base(`Balance Sheet for: ${company}`, "Year", `Amount $mm ${currency}`, yr),
     series: [
-      bar("Assets", "#003B73", bs.map((r) => num(r.totalAssets))),
-      bar("Equity", "#01949a", bs.map((r) => num(r.totalStockholdersEquity)), "el"),
-      bar("Liabilities", "#db1f48", bs.map((r) => num(r.totalLiabilities)), "el"),
-      bar("GW & Intangibles", "#746C70", bs.map((r) => num(r.goodwillAndIntangibleAssets))),
+      bar("Assets", "#003B73", bs.map((r) => mm(r.totalAssets))),
+      bar("Equity", "#01949a", bs.map((r) => mm(r.totalStockholdersEquity)), "el"),
+      bar("Liabilities", "#db1f48", bs.map((r) => mm(r.totalLiabilities)), "el"),
+      bar("GW & Intangibles", "#746C70", bs.map((r) => mm(r.goodwillAndIntangibleAssets))),
     ],
   };
 }
@@ -70,9 +94,9 @@ export function incomeStatementChart(is: IncomeRow[], company: string, currency:
   return {
     ...base(`Income Statement for: ${company}`, "Year", `Amount $mm ${currency}`, yr),
     series: [
-      bar("Revenue", "#004369", is.map((r) => num(r.revenue))),
-      bar("Net Income", "#41729f", is.map((r) => num(r.netIncome))),
-      bar("Interest Expense", "#DB1F48", is.map((r) => num(r.interestIncome))),
+      bar("Revenue", "#004369", is.map((r) => mm(r.revenue))),
+      bar("Net Income", "#41729f", is.map((r) => mm(r.netIncome))),
+      bar("Interest Expense", "#DB1F48", is.map((r) => mm(r.interestIncome))),
     ],
   };
 }
@@ -95,9 +119,9 @@ export function cashFlowChart(cf: CashFlowRow[], company: string, currency: stri
   return {
     ...base(`Cash Flow Statement for: ${company}`, "Year", `Amount $mm ${currency}`, yr),
     series: [
-      bar("CF Operations", "#01949A", cf.map((r) => num(r.netCashProvidedByOperatingActivities))),
-      bar("CF Investing", "#004369", cf.map((r) => num(r.netCashUsedForInvestingActivites))),
-      bar("CF Financing", "#DB1F48", cf.map((r) => num(r.netCashUsedProvidedByFinancingActivities))),
+      bar("CF Operations", "#01949A", cf.map((r) => mm(r.netCashProvidedByOperatingActivities))),
+      bar("CF Investing", "#004369", cf.map((r) => mm(r.netCashUsedForInvestingActivites))),
+      bar("CF Financing", "#DB1F48", cf.map((r) => mm(r.netCashUsedProvidedByFinancingActivities))),
     ],
   };
 }
@@ -110,9 +134,9 @@ export function equityUsesChart(
 ): ChartOption {
   const x = bs.map((r) => r.date);
   // Mirrors charts.py: beginning equity = shift(-1) of equity (oldest-first input).
-  const beginning = bs.map((_, i) => num(bs[i + 1]?.totalStockholdersEquity ?? null));
-  const netIncome = cf.map((r) => num(r.netIncome));
-  const dividends = cf.map((r) => num(r.dividendsPaid));
+  const beginning = bs.map((_, i) => mm(bs[i + 1]?.totalStockholdersEquity ?? null));
+  const netIncome = cf.map((r) => mm(r.netIncome));
+  const dividends = cf.map((r) => mm(r.dividendsPaid));
   const endingExpected = bs.map((_, i) => {
     const b = beginning[i];
     const ni = netIncome[i];
@@ -126,7 +150,7 @@ export function equityUsesChart(
       bar("NetIncome", "#005f73", netIncome),
       bar("Dividends", "#0a9396", dividends),
       bar("Ending Equity (expected)", "#41729f", endingExpected),
-      bar("Ending Equity (real)", "#004369", bs.map((r) => num(r.totalStockholdersEquity))),
+      bar("Ending Equity (real)", "#004369", bs.map((r) => mm(r.totalStockholdersEquity))),
     ],
   };
 }
