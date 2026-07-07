@@ -3,8 +3,10 @@
 // (data source + page number), and the same 11 sections. Charts are pre-rendered
 // to PNG (ECharts SSR -> resvg-js); tables are drawn with react-pdf primitives.
 import React from "react";
+import path from "path";
 import {
   Document,
+  Font,
   Image,
   Page,
   StyleSheet,
@@ -17,28 +19,61 @@ import { Grid } from "@/lib/grid";
 import { ChartOption } from "@/lib/charts";
 import { chartToPng } from "./chartToPng";
 
-const C = { accent: "#003b73", line: "#cdd6df", head: "#003b73", muted: "#6b7785" };
+// Embed the same Arimo the web UI and the chart rasterizer use, so PDF body
+// text matches the charts glyph-for-glyph instead of relying on Helvetica
+// metric compatibility. Files are traced for this route in next.config.ts.
+const FONT_DIR = path.join(process.cwd(), "pdf/fonts");
+Font.register({
+  family: "Arimo",
+  fonts: [
+    { src: path.join(FONT_DIR, "Arimo-Regular.ttf"), fontWeight: 400 },
+    { src: path.join(FONT_DIR, "Arimo-Bold.ttf"), fontWeight: 700 },
+  ],
+});
+// Financial labels/tickers shouldn't hyphenate mid-word.
+Font.registerHyphenationCallback((word) => [word]);
+
+const C = {
+  accent: "#003b73",
+  accent2: "#01949a",
+  accentSoft: "#eaf1f8",
+  line: "#cdd6df",
+  hairline: "#e3e8ee",
+  surface2: "#fafcfe",
+  muted: "#6b7785",
+  fgSoft: "#33414f",
+};
 
 const s = StyleSheet.create({
-  page: { paddingTop: 64, paddingBottom: 48, paddingHorizontal: 40, fontSize: 9, color: "#1a2330" },
-  header: { position: "absolute", top: 18, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  headerTitle: { fontSize: 11, fontFamily: "Helvetica-Bold", color: C.accent },
-  headerDate: { fontSize: 8, color: C.muted, fontFamily: "Helvetica-Oblique" },
-  footer: { position: "absolute", bottom: 20, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between" },
-  footerText: { fontSize: 8, color: C.muted, fontFamily: "Helvetica-Oblique" },
-  h2: { fontSize: 13, fontFamily: "Helvetica-Bold", color: C.accent, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: C.line, paddingBottom: 4 },
-  h3: { fontSize: 9, fontFamily: "Helvetica-Bold", marginTop: 10, marginBottom: 4 },
-  note: { fontSize: 9, fontStyle: "italic", color: C.muted, marginTop: 4 },
-  chart: { width: "100%", height: 200, objectFit: "contain", marginBottom: 6 },
-  profileRow: { flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 0.5, borderBottomColor: C.line, paddingVertical: 2 },
+  page: { paddingTop: 64, paddingBottom: 48, paddingHorizontal: 40, fontSize: 9, color: "#1a2330", fontFamily: "Arimo" },
+  header: { position: "absolute", top: 18, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", borderBottomWidth: 1, borderBottomColor: C.hairline, paddingBottom: 5 },
+  headerTitle: { fontSize: 11, fontWeight: 700, color: C.accent },
+  headerDate: { fontSize: 7.5, color: C.muted, letterSpacing: 0.2 },
+  footer: { position: "absolute", bottom: 20, left: 40, right: 40, flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: C.hairline, paddingTop: 5 },
+  footerText: { fontSize: 7.5, color: C.muted, letterSpacing: 0.2 },
+  h2Row: { flexDirection: "row", alignItems: "center", marginBottom: 10, borderBottomWidth: 1, borderBottomColor: C.hairline, paddingBottom: 6 },
+  h2Badge: { width: 16, height: 16, borderRadius: 8, backgroundColor: C.accent, marginRight: 6, alignItems: "center", justifyContent: "center" },
+  h2BadgeText: { fontSize: 8, fontWeight: 700, color: "#ffffff" },
+  h2: { fontSize: 13, fontWeight: 700, color: C.accent },
+  h3: { flexDirection: "row", alignItems: "center", marginTop: 12, marginBottom: 5 },
+  h3Tick: { width: 3, height: 9, borderRadius: 1.5, backgroundColor: C.accent2, marginRight: 5 },
+  h3Text: { fontSize: 8, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 0.6 },
+  note: { fontSize: 8.5, color: C.muted, marginTop: 4 },
+  chart: { width: "100%", height: 176, objectFit: "contain", marginBottom: 6 },
+  profileRow: { flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 0.5, borderBottomColor: C.hairline, paddingVertical: 3 },
   profileKey: { color: C.muted },
-  profileVal: { fontFamily: "Helvetica-Bold" },
-  description: { marginTop: 12, lineHeight: 1.4, textAlign: "justify" },
-  // table
+  profileVal: { fontWeight: 700 },
+  // No lineHeight: any numeric value (even 1) makes react-pdf double-space
+  // paragraphs with this font; the font's natural leading reads well.
+  description: { marginTop: 12, color: C.fgSoft },
+  // table: framed outer border, navy header band, hairline rules + zebra rows
+  tFrame: { borderWidth: 1, borderColor: C.hairline },
   tRow: { flexDirection: "row" },
-  tCell: { borderWidth: 0.5, borderColor: C.line, padding: 3, fontSize: 7.5 },
-  tHeadCell: { backgroundColor: C.head, color: "#fff", fontFamily: "Helvetica-Bold" },
-  tLabel: { fontFamily: "Helvetica-Bold", textAlign: "left" },
+  tRowEven: { backgroundColor: C.surface2 },
+  tCell: { paddingVertical: 3.5, paddingHorizontal: 4, fontSize: 7.5, borderBottomWidth: 0.5, borderBottomColor: C.hairline },
+  tCellLast: { borderBottomWidth: 0 },
+  tHeadCell: { backgroundColor: C.accent, color: "#ffffff", fontWeight: 700, fontSize: 6.5, textTransform: "uppercase", letterSpacing: 0.4, borderBottomWidth: 0 },
+  tLabel: { fontWeight: 700, textAlign: "left" },
   tNum: { textAlign: "right" },
 });
 
@@ -67,8 +102,9 @@ function PdfTable({ grid }: { grid: Grid }) {
   const firstW = `${Math.min(34, 100 / cols + 14)}%`;
   const restW = `${(100 - parseFloat(firstW)) / (cols - 1)}%`;
   return (
-    <View>
-      <View style={s.tRow}>
+    <View style={s.tFrame}>
+      {/* keep the header band and at least a couple of rows together */}
+      <View style={s.tRow} minPresenceAhead={40}>
         {grid.columns.map((c, i) => (
           <Text
             key={i}
@@ -79,11 +115,16 @@ function PdfTable({ grid }: { grid: Grid }) {
         ))}
       </View>
       {grid.rows.map((row, r) => (
-        <View key={r} style={s.tRow}>
+        <View key={r} style={[s.tRow, ...(r % 2 === 1 ? [s.tRowEven] : [])]}>
           {row.map((cell, i) => (
             <Text
               key={i}
-              style={[s.tCell, { width: i === 0 ? firstW : restW }, i === 0 ? s.tLabel : s.tNum]}
+              style={[
+                s.tCell,
+                { width: i === 0 ? firstW : restW },
+                i === 0 ? s.tLabel : s.tNum,
+                ...(r === grid.rows.length - 1 ? [s.tCellLast] : []),
+              ]}
             >
               {cell}
             </Text>
@@ -94,13 +135,33 @@ function PdfTable({ grid }: { grid: Grid }) {
   );
 }
 
+function SectionTitle({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <View style={s.h2Row}>
+      <View style={s.h2Badge}>
+        <Text style={s.h2BadgeText}>{n}</Text>
+      </View>
+      <Text style={s.h2}>{children}</Text>
+    </View>
+  );
+}
+
+function SubTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <View style={s.h3} minPresenceAhead={60}>
+      <View style={s.h3Tick} />
+      <Text style={s.h3Text}>{children}</Text>
+    </View>
+  );
+}
+
 type Pngs = Record<string, string | null>;
 
 function Chart({ pngs, name, title }: { pngs: Pngs; name: string; title: string }) {
   const src = pngs[name];
   return (
     <View wrap={false}>
-      <Text style={s.h3}>{title}</Text>
+      <SubTitle>{title}</SubTitle>
       {src ? <Image style={s.chart} src={src} /> : <Text style={s.note}>No data available.</Text>}
     </View>
   );
@@ -134,7 +195,7 @@ function buildDocument(report: Report, pngs: Pngs) {
       keywords={`fundamental, analysis, ${company}`}
     >
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Company Summary</Text>
+        <SectionTitle n={1}>Company Summary</SectionTitle>
         {profileRows.map(([k, v]) => (
           <View key={k} style={s.profileRow}>
             <Text style={s.profileKey}>{k}</Text>
@@ -145,88 +206,88 @@ function buildDocument(report: Report, pngs: Pngs) {
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Financial Statements</Text>
+        <SectionTitle n={2}>Financial Statements</SectionTitle>
         <Text style={s.note}>Amounts in {meta.currency} (Millions)</Text>
-        <Text style={s.h3}>Income Statement</Text>
+        <SubTitle>Income Statement</SubTitle>
         <PdfTable grid={t.incomeStatement} />
-        <Text style={s.h3}>Common Size Income Statement</Text>
+        <SubTitle>Common Size Income Statement</SubTitle>
         <PdfTable grid={t.incomeStatementCS} />
-        <Text style={s.h3}>Balance Sheet</Text>
+        <SubTitle>Balance Sheet</SubTitle>
         <PdfTable grid={t.balanceSheet} />
-        <Text style={s.h3}>Common Size Balance Sheet</Text>
+        <SubTitle>Common Size Balance Sheet</SubTitle>
         <PdfTable grid={t.balanceSheetCS} />
-        <Text style={s.h3}>Cash Flow Statement</Text>
+        <SubTitle>Cash Flow Statement</SubTitle>
         <PdfTable grid={t.cashFlow} />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Financial Summary — Risk &amp; Returns</Text>
-        <Text style={s.h3}>Debt Ratios</Text>
+        <SectionTitle n={3}>Financial Summary — Risk &amp; Returns</SectionTitle>
+        <SubTitle>Debt Ratios</SubTitle>
         <PdfTable grid={t.debtRatios} />
-        <Text style={s.h3}>Profit Ratios</Text>
+        <SubTitle>Profit Ratios</SubTitle>
         <PdfTable grid={t.profitRatios} />
-        <Text style={s.h3}>Efficiency Ratios</Text>
+        <SubTitle>Efficiency Ratios</SubTitle>
         <PdfTable grid={t.efficiencyRatios} />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Financial Summary — Valuation</Text>
-        <Text style={s.h3}>Market Ratios</Text>
+        <SectionTitle n={4}>Financial Summary — Valuation</SectionTitle>
+        <SubTitle>Market Ratios</SubTitle>
         <PdfTable grid={t.marketRatios} />
-        <Text style={s.h3}>Key Metrics</Text>
+        <SubTitle>Key Metrics</SubTitle>
         <PdfTable grid={t.keyMetrics} />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Statement Graphs</Text>
+        <SectionTitle n={5}>Statement Graphs</SectionTitle>
         <Chart pngs={pngs} name="incomeStatement" title="Income Statement" />
         <Chart pngs={pngs} name="balanceSheet" title="Balance Sheet" />
         <Chart pngs={pngs} name="cashFlow" title="Cash Flow Statement" />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Common Size Graphs &amp; Equity Uses</Text>
+        <SectionTitle n={6}>Common Size Graphs &amp; Equity Uses</SectionTitle>
         <Chart pngs={pngs} name="incomeStatementCS" title="Common Size Income Statement" />
         <Chart pngs={pngs} name="balanceSheetCS" title="Common Size Balance Sheet" />
         <Chart pngs={pngs} name="equityUses" title="Equity Uses" />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Dividends &amp; Analyst Consensus</Text>
+        <SectionTitle n={7}>Dividends &amp; Analyst Consensus</SectionTitle>
         <Chart pngs={pngs} name="dividendHistory" title="Dividend History" />
         <Chart pngs={pngs} name="analystRecommendations" title="Analyst Recommendations" />
-        <Text style={s.h3}>Analyst Price Targets</Text>
+        <SubTitle>Analyst Price Targets</SubTitle>
         <PdfTable grid={t.priceTargets} />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>EPS: Estimate vs Actual</Text>
+        <SectionTitle n={8}>EPS: Estimate vs Actual</SectionTitle>
         <Chart pngs={pngs} name="earningsHistory" title="EPS: Estimate vs Actual (Recent Quarters)" />
-        <Text style={s.h3}>Earnings Surprises Table</Text>
+        <SubTitle>Earnings Surprises Table</SubTitle>
         <PdfTable grid={t.earningsHistory} />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Forward Estimates</Text>
-        <Text style={s.h3}>Forward Earnings Estimate (EPS)</Text>
+        <SectionTitle n={9}>Forward Estimates</SectionTitle>
+        <SubTitle>Forward Earnings Estimate (EPS)</SubTitle>
         <PdfTable grid={t.forwardEarnings} />
-        <Text style={s.h3}>Forward Revenue Estimate</Text>
+        <SubTitle>Forward Revenue Estimate</SubTitle>
         <PdfTable grid={t.forwardRevenue} />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Ownership Breakdown</Text>
-        <Text style={s.h3}>Major Holders Summary</Text>
+        <SectionTitle n={10}>Ownership Breakdown</SectionTitle>
+        <SubTitle>Major Holders Summary</SubTitle>
         <PdfTable grid={t.majorHolders} />
-        <Text style={s.h3}>Top 10 Institutional Holders</Text>
+        <SubTitle>Top 10 Institutional Holders</SubTitle>
         <PdfTable grid={t.institutionalHolders} />
       </Frame>
 
       <Frame company={company} date={date}>
-        <Text style={s.h2}>Insider Transactions</Text>
-        <Text style={s.h3}>Insider Purchases Summary (Last 6 Months)</Text>
+        <SectionTitle n={11}>Insider Transactions</SectionTitle>
+        <SubTitle>Insider Purchases Summary (Last 6 Months)</SubTitle>
         <PdfTable grid={t.insiderPurchases} />
-        <Text style={s.h3}>Recent Insider Transactions</Text>
+        <SubTitle>Recent Insider Transactions</SubTitle>
         <PdfTable grid={t.insiderTransactions} />
       </Frame>
     </Document>
@@ -238,8 +299,10 @@ function num(v: number | null): string {
 }
 
 const CHART_SIZES: Record<string, [number, number]> = {
-  // wider/short for statement bars; default 800x400
+  // wider/short for statement bars; default 1000x360 (wide aspect so three
+  // 176pt-tall charts fit on one page without shrinking their width)
 };
+const DEFAULT_CHART_SIZE: [number, number] = [1000, 360];
 
 export async function renderReportPdf(report: Report): Promise<Buffer> {
   // Pre-render every present chart to a PNG data URI.
@@ -250,7 +313,7 @@ export async function renderReportPdf(report: Report): Promise<Buffer> {
         pngs[name] = null;
         return;
       }
-      const [w, h] = CHART_SIZES[name] ?? [800, 400];
+      const [w, h] = CHART_SIZES[name] ?? DEFAULT_CHART_SIZE;
       pngs[name] = await chartToPng(option as ChartOption, w, h);
     }),
   );

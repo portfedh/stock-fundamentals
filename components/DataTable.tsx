@@ -10,7 +10,7 @@ export default function DataTable({ grid }: { grid: Grid }) {
         <thead>
           <tr>
             {grid.columns.map((c, i) => (
-              <th key={i} className={i === 0 ? "rowhead" : "num"}>
+              <th key={i} scope="col" className={i === 0 ? "rowhead" : "num"}>
                 {c}
               </th>
             ))}

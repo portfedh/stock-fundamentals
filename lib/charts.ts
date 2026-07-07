@@ -16,9 +16,13 @@ import { safeDiv } from "./math";
 export type ChartOption = Record<string, unknown>;
 
 const num = (v: Num): number | null => (v == null || !isFinite(v) ? null : v);
+// Per-share values (EPS, dividends) keep 2 decimals; anything coarser would
+// erase the difference between estimate and actual.
+const num2 = (v: Num): number | null => (v == null || !isFinite(v) ? null : Math.round(v * 100) / 100);
 // Currency charts are labelled "Amount $mm" (millions), matching the tables in
-// lib/tables.ts; scale raw dollar values to millions so the labels stay legible.
-const mm = (v: Num): number | null => (v == null || !isFinite(v) ? null : v / 1e6);
+// lib/tables.ts; scale raw dollar values to millions and round to whole
+// millions so tooltips show integers, like the tables do.
+const mm = (v: Num): number | null => (v == null || !isFinite(v) ? null : Math.round(v / 1e6));
 
 function base(title: string, xName: string, yName: string, categories: string[]): ChartOption {
   return {
@@ -77,7 +81,8 @@ export function balanceSheetChart(bs: BalanceRow[], company: string, currency: s
 
 export function balanceSheetCSChart(bs: BalanceRow[], company: string): ChartOption {
   const yr = bs.map((r) => r.calendarYear);
-  const pct = (v: Num, r: BalanceRow) => num(mul(safeDiv(v, r.totalAssets), 100));
+  // Integer percents, matching the common-size tables.
+  const pct = (v: Num, r: BalanceRow) => round(num(mul(safeDiv(v, r.totalAssets), 100)));
   return {
     ...base(`Common Size Balance Sheet for: ${company}`, "Year", "Amount %", yr),
     series: [
@@ -103,7 +108,8 @@ export function incomeStatementChart(is: IncomeRow[], company: string, currency:
 
 export function incomeStatementCSChart(is: IncomeRow[], company: string): ChartOption {
   const yr = is.map((r) => r.calendarYear);
-  const pct = (v: Num, r: IncomeRow) => num(mul(safeDiv(v, r.revenue), 100));
+  // Integer percents, matching the common-size tables.
+  const pct = (v: Num, r: IncomeRow) => round(num(mul(safeDiv(v, r.revenue), 100)));
   return {
     ...base(`Common Size Income Statement for: ${company}`, "Year", "Amount %", yr),
     series: [
@@ -159,7 +165,7 @@ export function dividendHistoryChart(div: DividendPoint[], company: string, curr
   return {
     ...base(`Dividend History for: ${company}`, "Year", `Dividends per share (${currency})`, div.map((d) => d.year)),
     legend: { show: false },
-    series: [bar("Dividends per share", "#0a9396", div.map((d) => d.amount))],
+    series: [bar("Dividends per share", "#0a9396", div.map((d) => num2(d.amount)))],
   };
 }
 
@@ -184,12 +190,16 @@ export function earningsHistoryChart(rows: EarningsHistoryRow[], company: string
   return {
     ...base(`EPS: Estimate vs Actual for: ${company}`, "Quarter", "EPS", yr),
     series: [
-      bar("Estimate", "#746C70", asc.map((r) => num(r.epsEstimate))),
-      bar("Actual", "#004369", asc.map((r) => num(r.epsActual))),
+      bar("Estimate", "#746C70", asc.map((r) => num2(r.epsEstimate))),
+      bar("Actual", "#004369", asc.map((r) => num2(r.epsActual))),
     ],
   };
 }
 
 function mul(v: Num, k: number): Num {
   return v == null ? null : v * k;
+}
+
+function round(v: number | null): number | null {
+  return v == null ? null : Math.round(v);
 }

@@ -4,6 +4,27 @@ import { useState } from "react";
 import type { Report } from "@/lib/report";
 import ReportView from "@/components/sections/ReportView";
 
+const EXAMPLE_TICKERS = ["AAPL", "MSFT", "GOOGL", "NVDA"];
+
+function BrandMark({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <rect width="32" height="32" rx="7" fill="#003b73" />
+      <rect x="6" y="18" width="4" height="8" rx="1" fill="#ffffff" fillOpacity="0.55" />
+      <rect x="14" y="13" width="4" height="13" rx="1" fill="#ffffff" fillOpacity="0.75" />
+      <rect x="22" y="8" width="4" height="18" rx="1" fill="#ffffff" />
+      <path
+        d="M6 16L14 12L18 14L26 6"
+        stroke="#7fd4d8"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="26" cy="6" r="2.2" fill="#7fd4d8" />
+    </svg>
+  );
+}
+
 export default function Home() {
   const [ticker, setTicker] = useState("AAPL");
   // Yahoo's annual statements only go back ~4 years, so that's the practical max.
@@ -12,10 +33,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function run(e: React.FormEvent) {
-    e.preventDefault();
-    const sym = ticker.trim().toUpperCase();
-    if (!sym) return;
+  async function analyze(raw: string) {
+    const sym = raw.trim().toUpperCase();
+    if (!sym || loading) return;
     setLoading(true);
     setError(null);
     setReport(null);
@@ -31,65 +51,132 @@ export default function Home() {
     }
   }
 
+  function quickPick(sym: string) {
+    setTicker(sym);
+    void analyze(sym);
+  }
+
   function downloadPdf() {
     if (!report) return;
     const { ticker: tk, years: yr } = report.meta;
     window.open(`/api/report/pdf?ticker=${encodeURIComponent(tk)}&years=${yr}`, "_blank");
   }
 
+  const showHero = !report && !loading && !error;
+
+  function renderSearchForm(variant: "hero" | "topbar") {
+    return (
+      <form
+        className={variant === "hero" ? "controls controls-lg" : "controls"}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void analyze(ticker);
+        }}
+      >
+        <input
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value)}
+          placeholder="Ticker (e.g. AAPL)"
+          aria-label="Ticker"
+          autoCapitalize="characters"
+        />
+        <select value={years} onChange={(e) => setYears(Number(e.target.value))} aria-label="Years">
+          {[3, 4].map((y) => (
+            <option key={y} value={y}>
+              {y} years
+            </option>
+          ))}
+        </select>
+        <button type="submit" disabled={loading}>
+          {loading ? "Loading…" : "Analyze"}
+        </button>
+        {report && (
+          <button type="button" className="secondary" onClick={downloadPdf}>
+            Download PDF
+          </button>
+        )}
+      </form>
+    );
+  }
+
   return (
     <main className="page">
       <header className="topbar">
         <div className="brand">
+          <BrandMark />
           <h1>Fundamental Analysis</h1>
         </div>
-        <form className="controls" onSubmit={run}>
-          <input
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value)}
-            placeholder="Ticker (e.g. AAPL)"
-            aria-label="Ticker"
-            autoCapitalize="characters"
-          />
-          <select value={years} onChange={(e) => setYears(Number(e.target.value))} aria-label="Years">
-            {[3, 4].map((y) => (
-              <option key={y} value={y}>
-                {y} years
-              </option>
-            ))}
-          </select>
-          <button type="submit" disabled={loading}>
-            {loading ? "Loading…" : "Analyze"}
-          </button>
-          {report && (
-            <button type="button" className="secondary" onClick={downloadPdf}>
-              Download PDF
-            </button>
-          )}
-        </form>
+        {!showHero && renderSearchForm("topbar")}
       </header>
 
-      {error && <div className="error">{error}</div>}
+      {showHero && (
+        <section className="hero">
+          <p className="hero-eyebrow">Equity research, automated</p>
+          <h2 className="hero-title">Fundamental analysis reports in seconds</h2>
+          <p className="hero-sub">
+            Enter any ticker or ISIN to generate a full fundamental report — financial
+            statements, ratios, valuation, ownership and more — built from Yahoo Finance
+            data and exportable to PDF.
+          </p>
+          <div className="hero-search">{renderSearchForm("hero")}</div>
+          <div className="chips" role="group" aria-label="Example tickers">
+            {EXAMPLE_TICKERS.map((s) => (
+              <button key={s} type="button" className="chip" onClick={() => quickPick(s)}>
+                {s}
+              </button>
+            ))}
+          </div>
+          <ul className="feature-grid">
+            <li className="feature-card">
+              <h3>11 report sections</h3>
+              <p>Company profile, financial statements, ratios, valuation, estimates, ownership and insider activity.</p>
+            </li>
+            <li className="feature-card">
+              <h3>Visual trend charts</h3>
+              <p>Income, balance sheet, cash flow, dividends and analyst-consensus charts across the years you pick.</p>
+            </li>
+            <li className="feature-card">
+              <h3>One-click PDF</h3>
+              <p>Download a print-ready report that matches the on-screen numbers exactly.</p>
+            </li>
+          </ul>
+        </section>
+      )}
 
-      {loading && <div className="status">Fetching data from Yahoo Finance…</div>}
+      {error && (
+        <div className="error" role="alert">
+          <div>
+            <strong>Couldn&rsquo;t generate the report.</strong> {error}
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="loading" role="status">
+          <span className="spinner" aria-hidden="true" />
+          <p>Fetching data from Yahoo Finance…</p>
+          <div className="skeleton-stack" aria-hidden="true">
+            <div className="skeleton-card" />
+            <div className="skeleton-card" />
+            <div className="skeleton-card" />
+          </div>
+        </div>
+      )}
 
       {report && (
         <>
           <div className="report-head">
             <h2>{report.meta.companyName}</h2>
+            <span className="ticker-pill">{report.meta.companySymbol}</span>
             <span className="muted">
-              {report.meta.companySymbol} · {report.meta.years} years · generated{" "}
-              {report.meta.generatedAt}
+              {report.meta.years} years · generated {report.meta.generatedAt}
             </span>
           </div>
           <ReportView report={report} />
-          <footer className="footer">Data provided by Yahoo Finance.</footer>
         </>
       )}
 
-      {!report && !loading && !error && (
-        <div className="status">Enter a ticker and click Analyze to generate a report.</div>
-      )}
+      <footer className="footer">Data provided by Yahoo Finance.</footer>
     </main>
   );
 }
