@@ -1,6 +1,5 @@
 // Port of tables.py: builds formatted Grids for every table in the report.
-// Statement tables read oldest-first (left→right); ratio/metric tables read
-// newest-first, matching the original PDF's column ordering.
+// All tables read oldest-first (left→right).
 
 import { Grid, emptyGrid } from "./grid";
 import {
@@ -102,11 +101,10 @@ export function cashFlowTable(cf: CashFlowRow[]): Grid {
   ]);
 }
 
-// ── Ratio / metric tables (newest-first) ────────────────────────────────────
+// ── Ratio / metric tables ────────────────────────────────────────────────
 
 export function marketRatiosTable(ratios: RatioRow[]): Grid {
-  const r = [...ratios].reverse(); // newest-first
-  return transposed(r, [
+  return transposed(ratios, [
     { label: "Price to Book Ratio", cell: (x) => nf(x.priceToBookRatio, 0) },
     { label: "Price to Sales Ratio", cell: (x) => nf(x.priceToSalesRatio, 0) },
     { label: "Price to Earnings Ratio", cell: (x) => nf(x.priceEarningsRatio, 0) },
@@ -123,8 +121,7 @@ function mul100(v: Num): Num {
 }
 
 export function debtRatiosTable(ratios: RatioRow[]): Grid {
-  const r = [...ratios].reverse();
-  return transposed(r, [
+  return transposed(ratios, [
     { label: "Debt Assets Ratio", cell: (x) => nf(x.debtRatio, 1) },
     { label: "Debt Equity Ratio", cell: (x) => nf(x.debtEquityRatio, 1) },
     { label: "Current Ratio", cell: (x) => nf(x.currentRatio, 1) },
@@ -136,8 +133,7 @@ export function debtRatiosTable(ratios: RatioRow[]): Grid {
 }
 
 export function profitRatiosTable(ratios: RatioRow[]): Grid {
-  const r = [...ratios].reverse();
-  return transposed(r, [
+  return transposed(ratios, [
     { label: "Gross Margin", cell: (x) => nf(x.grossProfitMargin, 2) },
     { label: "Operating Margin", cell: (x) => nf(x.operatingProfitMargin, 2) },
     { label: "Net Profit Margin", cell: (x) => nf(x.netProfitMargin, 2) },
@@ -150,8 +146,7 @@ export function profitRatiosTable(ratios: RatioRow[]): Grid {
 }
 
 export function efficiencyRatiosTable(ratios: RatioRow[]): Grid {
-  const r = [...ratios].reverse();
-  return transposed(r, [
+  return transposed(ratios, [
     { label: "Days of Sales Outstanding", cell: (x) => nf(x.daysOfSalesOutstanding, 0) },
     { label: "Days of Payables Outstanding", cell: (x) => nf(x.daysOfPayablesOutstanding, 0) },
     { label: "Days of Inventory Outstanding", cell: (x) => nf(x.daysOfInventoryOutstanding, 0) },
@@ -166,9 +161,8 @@ export function efficiencyRatiosTable(ratios: RatioRow[]): Grid {
 }
 
 export function keyMetricsTable(metrics: MetricRow[]): Grid {
-  const r = [...metrics].reverse();
   const mm = (v: Num) => nf(v == null ? null : v / 1e6, 0);
-  return transposed(r, [
+  return transposed(metrics, [
     { label: "Market Cap (millions)", cell: (x) => mm(x.marketCap) },
     { label: "Net income per share", cell: (x) => nf(x.netIncomePerShare, 0) },
     { label: "Free Cash Flow per share", cell: (x) => nf(x.freeCashFlowPerShare, 0) },
