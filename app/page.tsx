@@ -6,6 +6,21 @@ import ReportView from "@/components/sections/ReportView";
 
 const EXAMPLE_TICKERS = ["AAPL", "MSFT", "GOOGL", "NVDA"];
 
+// Mirrors the numbered sections rendered by ReportView.
+const REPORT_SECTIONS = [
+  "Company summary",
+  "Financial statements",
+  "Risk & return ratios",
+  "Valuation ratios",
+  "Statement graphs",
+  "Common size graphs",
+  "Dividends & analyst consensus",
+  "EPS: estimate vs actual",
+  "Forward estimates",
+  "Ownership breakdown",
+  "Insider transactions",
+];
+
 function BrandMark({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -111,35 +126,30 @@ export default function Home() {
 
       {showHero && (
         <section className="hero">
-          <p className="hero-eyebrow">Equity research, automated</p>
-          <h2 className="hero-title">Fundamental analysis reports in seconds</h2>
+          <h2 className="hero-title">Fundamental analysis reports</h2>
           <p className="hero-sub">
-            Enter any ticker or ISIN to generate a full fundamental report — financial
-            statements, ratios, valuation, ownership and more — built from Yahoo Finance
-            data and exportable to PDF.
+            Enter any ticker to generate a full fundamental report, exportable to PDF.
           </p>
           <div className="hero-search">{renderSearchForm("hero")}</div>
           <div className="chips" role="group" aria-label="Example tickers">
+            <span className="chips-label">Examples</span>
             {EXAMPLE_TICKERS.map((s) => (
               <button key={s} type="button" className="chip" onClick={() => quickPick(s)}>
                 {s}
               </button>
             ))}
           </div>
-          <ul className="feature-grid">
-            <li className="feature-card">
-              <h3>11 report sections</h3>
-              <p>Company profile, financial statements, ratios, valuation, estimates, ownership and insider activity.</p>
-            </li>
-            <li className="feature-card">
-              <h3>Visual trend charts</h3>
-              <p>Income, balance sheet, cash flow, dividends and analyst-consensus charts across the years you pick.</p>
-            </li>
-            <li className="feature-card">
-              <h3>One-click PDF</h3>
-              <p>Download a print-ready report that matches the on-screen numbers exactly.</p>
-            </li>
-          </ul>
+          <div className="contents">
+            <h3 className="contents-title">What the report contains</h3>
+            <ol className="contents-list">
+              {REPORT_SECTIONS.map((name, i) => (
+                <li key={name}>
+                  <span className="contents-num">{i + 1}</span>
+                  {name}
+                </li>
+              ))}
+            </ol>
+          </div>
         </section>
       )}
 
